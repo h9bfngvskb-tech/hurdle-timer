@@ -4,7 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>Touchdown Timer</title>
-<!-- ホーム画面に追加でアプリ風に起動 -->
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="TD Timer">
@@ -15,12 +14,12 @@
     --bg:#0A0D12; --panel:#131820; --panel2:#1A212C; --line:#2A3442;
     --text:#E8EEF5; --dim:#8B99AB; --accent:#FFD34D; --mark:#FF5A3C; --ok:#4ADE80;
   }
-  * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; touch-action:manipulation; }
   body {
-    margin:0; background:var(--bg); color:var(--text);
+    margin:0 auto; background:var(--bg); color:var(--text);
     font-family:'Hiragino Sans','Noto Sans JP',sans-serif;
     padding:calc(env(safe-area-inset-top) + 14px) 12px calc(env(safe-area-inset-bottom) + 30px);
-    max-width:560px; margin:0 auto;
+    max-width:560px;
     -webkit-user-select:none; user-select:none;
   }
   .head { display:flex; align-items:baseline; gap:10px; margin-bottom:12px; }
@@ -30,10 +29,16 @@
 
   .videoBox { background:var(--panel); border:1px solid var(--line); border-radius:14px; overflow:hidden; transition:border-color .15s; }
   .videoBox.flash { border-color:var(--accent); }
-  video { width:100%; display:block; background:#000; max-height:44vh; }
+  .videoWrap { position:relative; overflow:hidden; background:#000; touch-action:none; }
+  video { width:100%; display:block; background:#000; max-height:44vh; transform-origin:center center; }
+  body.zoomed video { max-height:62vh; }
   .drop { padding:52px 20px; text-align:center; color:var(--dim); cursor:pointer; }
   .drop .icon { font-size:40px; margin-bottom:8px; }
   .err { padding:10px 14px; font-size:12px; color:var(--mark); display:none; }
+  .zoomBadge {
+    position:absolute; top:8px; right:8px; background:rgba(0,0,0,.6); color:var(--accent);
+    font-size:12px; padding:4px 10px; border-radius:20px; display:none; pointer-events:none;
+  }
 
   .timeline { position:relative; height:38px; background:var(--panel2); touch-action:none; }
   .tl-progress { position:absolute; left:0; top:0; bottom:0; background:rgba(255,211,77,.14); }
@@ -53,6 +58,9 @@
   }
   button:active { background:#232d3b; }
   .play { font-weight:700; }
+
+  .zoomRow { display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin-top:8px; }
+  .zoomRow button.on { border-color:var(--accent); color:var(--accent); }
 
   .settings { display:flex; gap:10px; margin-top:10px; flex-wrap:wrap; align-items:center; font-size:12px; color:var(--dim); }
   .settings select { padding:7px 8px; font-size:13px; }
@@ -93,7 +101,10 @@
     <div style="font-size:15px">タップして動画を選択</div>
     <div style="font-size:12px;margin-top:6px">「フォトライブラリ」からそのまま選べます</div>
   </div>
-  <video id="video" playsinline webkit-playsinline muted preload="metadata" class="hidden"></video>
+  <div class="videoWrap hidden" id="videoWrap">
+    <video id="video" playsinline webkit-playsinline muted preload="metadata"></video>
+    <div class="zoomBadge" id="zoomBadge">×2 ドラッグで移動</div>
+  </div>
   <div class="err" id="err"></div>
   <div class="timeline hidden" id="timeline">
     <div class="tl-progress" id="tlProgress"></div>
@@ -117,28 +128,40 @@
     <button id="b+10">+10</button>
   </div>
 
+  <div class="zoomRow">
+    <button data-zoom="1" class="on">等倍</button>
+    <button data-zoom="2">🔍 ×2</button>
+    <button data-zoom="3">🔍 ×3</button>
+  </div>
+
   <div class="settings">
-    <label>動画fps
-      <select id="fps">
-        <option>24</option><option>30</option><option selected>60</option><option>120</option><option>240</option>
-      </select>
-    </label>
-    <label>再生速度
-      <select id="rate">
-        <option value="0.1">0.1x</option><option value="0.25">0.25x</option>
-        <option value="0.5">0.5x</option><option value="1" selected>1x</option>
+    <label>種目
+      <select id="event">
+        <option selected>110mH</option><option>100mH</option><option>400mH</option><option>練習</option>
       </select>
     </label>
     <label>台数
       <select id="hurdles">
-        <option>5</option><option>6</option><option>7</option><option>8</option><option>9</option><option selected>10</option>
+        <option>5</option><option>6</option><option>7</option><option>8</option><option>9</option>
+        <option selected>10</option><option>11</option><option>12</option><option>13</option><option>14</option><option>15</option>
+      </select>
+    </label>
+    <label>fps
+      <select id="fps">
+        <option>24</option><option>30</option><option selected>60</option><option>120</option><option>240</option>
+      </select>
+    </label>
+    <label>速度
+      <select id="rate">
+        <option value="0.1">0.1x</option><option value="0.25">0.25x</option>
+        <option value="0.5">0.5x</option><option value="1" selected>1x</option>
       </select>
     </label>
     <button id="bChange" style="padding:7px 10px;font-size:12px">動画変更</button>
   </div>
 
   <button id="markBtn">⏱ スタート をマーク</button>
-  <div class="hint" id="kbHint">±1コマで接地の瞬間に合わせてマーク。行の地点名タップでその位置へジャンプ</div>
+  <div class="hint">±1コマは長押しで連続送り。×2/×3で拡大→指でドラッグして接地位置を確認</div>
 
   <div class="table hidden" id="table">
     <div class="row hdr"><div>地点</div><div>累積</div><div>区間ラップ</div><div style="text-align:right">操作</div></div>
@@ -154,10 +177,10 @@
 <script>
 const $ = (id) => document.getElementById(id);
 const video = $("video");
-let marks = [];        // 秒数の配列
+let marks = [];
 let fps = 60;
 let numHurdles = 10;
-let raf;
+let zoom = 1, panX = 0, panY = 0;
 
 const maxMarks = () => numHurdles + 2;
 const labelFor = (i) => i === 0 ? "スタート" : (i === numHurdles + 1 ? "フィニッシュ" : "H" + i);
@@ -167,6 +190,9 @@ const fmtClock = (t) => {
   const m = Math.floor(t / 60), s = t - m * 60;
   return m + ":" + s.toFixed(2).padStart(5, "0");
 };
+
+// ── ダブルタップ拡大の抑止 ──
+document.addEventListener("dblclick", (e) => e.preventDefault(), { passive: false });
 
 // ── 動画読み込み ──
 $("drop").onclick = () => $("file").click();
@@ -179,26 +205,21 @@ $("file").onchange = (e) => {
   video.src = URL.createObjectURL(f);
   video.load();
   marks = [];
+  setZoom(1);
   $("drop").classList.add("hidden");
-  video.classList.remove("hidden");
+  $("videoWrap").classList.remove("hidden");
   $("controls").classList.remove("hidden");
   $("timeline").classList.remove("hidden");
   $("meta").innerHTML = f.name;
   render();
 };
 video.onerror = () => {
-  $("err").textContent = "⚠ この動画形式を再生できませんでした。iPhoneの「写真」アプリから共有→ファイルに保存した動画、またはmp4形式をお試しください。";
+  $("err").textContent = "⚠ この動画形式を再生できませんでした。別の動画かmp4形式をお試しください。";
   $("err").style.display = "block";
 };
 
 // ── 再生位置追従 ──
-function loop() {
-  updateClock();
-  raf = requestAnimationFrame(loop);
-}
-loop();
-
-function updateClock() {
+(function loop() {
   const t = video.currentTime || 0, d = video.duration || 0;
   $("clock").textContent = fmtClock(t);
   if (d > 0) {
@@ -208,7 +229,8 @@ function updateClock() {
   if (marks.length > 0) {
     $("meta").innerHTML = "スタートから <b>" + fmt(t - marks[0]) + "s</b>";
   }
-}
+  requestAnimationFrame(loop);
+})();
 
 // ── 再生/コマ送り ──
 function setPlayLabel() { $("bPlay").textContent = video.paused ? "▶ 再生" : "⏸ 停止"; }
@@ -224,16 +246,71 @@ function step(frames) {
   const t = Math.min(Math.max(video.currentTime + frames / fps, 0), video.duration || 0);
   video.currentTime = t;
 }
-$("b-10").onclick = () => step(-10);
-$("b-1").onclick = () => step(-1);
-$("b+1").onclick = () => step(1);
-$("b+10").onclick = () => step(10);
+
+// 長押しで連続コマ送り(タップ連打でも拡大しない)
+function bindRepeat(el, fn) {
+  let holdTimer = null, repeatTimer = null;
+  const start = (e) => {
+    e.preventDefault();
+    fn();
+    holdTimer = setTimeout(() => { repeatTimer = setInterval(fn, 100); }, 380);
+  };
+  const stop = () => { clearTimeout(holdTimer); clearInterval(repeatTimer); };
+  el.addEventListener("pointerdown", start);
+  ["pointerup", "pointercancel", "pointerleave"].forEach(ev => el.addEventListener(ev, stop));
+}
+bindRepeat($("b-1"), () => step(-1));
+bindRepeat($("b+1"), () => step(1));
+bindRepeat($("b-10"), () => step(-10));
+bindRepeat($("b+10"), () => step(10));
 
 $("fps").onchange = (e) => fps = +e.target.value;
 $("rate").onchange = (e) => video.playbackRate = +e.target.value;
 $("hurdles").onchange = (e) => { numHurdles = +e.target.value; render(); };
+$("event").onchange = () => render();
 
-// ── タイムライン(タップ/ドラッグでシーク) ──
+// ── ズーム&パン ──
+function setZoom(z) {
+  zoom = z;
+  if (z === 1) { panX = 0; panY = 0; }
+  clampPan();
+  applyZoom();
+  document.body.classList.toggle("zoomed", z > 1);
+  document.querySelectorAll("[data-zoom]").forEach(b =>
+    b.classList.toggle("on", +b.dataset.zoom === z));
+  const badge = $("zoomBadge");
+  badge.style.display = z > 1 ? "block" : "none";
+  badge.textContent = "×" + z + " ドラッグで移動";
+}
+function applyZoom() {
+  video.style.transform = `translate(${panX}px, ${panY}px) scale(${zoom})`;
+}
+function clampPan() {
+  const r = $("videoWrap").getBoundingClientRect();
+  const mx = (zoom - 1) * r.width / 2, my = (zoom - 1) * r.height / 2;
+  panX = Math.min(Math.max(panX, -mx), mx);
+  panY = Math.min(Math.max(panY, -my), my);
+}
+document.querySelectorAll("[data-zoom]").forEach(b =>
+  b.onclick = () => setZoom(+b.dataset.zoom));
+
+let dragging = false, lastX = 0, lastY = 0;
+const wrap = $("videoWrap");
+wrap.addEventListener("pointerdown", (e) => {
+  if (zoom === 1) return;
+  dragging = true; lastX = e.clientX; lastY = e.clientY;
+  wrap.setPointerCapture(e.pointerId);
+});
+wrap.addEventListener("pointermove", (e) => {
+  if (!dragging) return;
+  panX += e.clientX - lastX; panY += e.clientY - lastY;
+  lastX = e.clientX; lastY = e.clientY;
+  clampPan(); applyZoom();
+});
+["pointerup", "pointercancel"].forEach(ev =>
+  wrap.addEventListener(ev, () => dragging = false));
+
+// ── タイムライン ──
 const tl = $("timeline");
 function tlSeek(clientX) {
   const r = tl.getBoundingClientRect();
@@ -241,13 +318,8 @@ function tlSeek(clientX) {
   video.pause();
   video.currentTime = p * (video.duration || 0);
 }
-tl.addEventListener("pointerdown", (e) => {
-  tl.setPointerCapture(e.pointerId);
-  tlSeek(e.clientX);
-});
-tl.addEventListener("pointermove", (e) => {
-  if (e.buttons) tlSeek(e.clientX);
-});
+tl.addEventListener("pointerdown", (e) => { tl.setPointerCapture(e.pointerId); tlSeek(e.clientX); });
+tl.addEventListener("pointermove", (e) => { if (e.buttons) tlSeek(e.clientX); });
 
 // ── マーク ──
 $("markBtn").onclick = () => {
@@ -263,7 +335,7 @@ $("bUndo").onclick = () => { marks.pop(); render(); };
 $("bClear").onclick = () => { if (confirm("全マークを削除しますか?")) { marks = []; render(); } };
 
 $("bCopy").onclick = async () => {
-  const lines = ["地点\t累積(s)\t区間(s)"];
+  const lines = [$("event").value + " タッチダウンタイム", "地点\t累積(s)\t区間(s)"];
   marks.forEach((t, i) => {
     const cum = i === 0 ? 0 : t - marks[0];
     const split = i > 0 ? t - marks[i - 1] : null;
@@ -275,18 +347,15 @@ $("bCopy").onclick = async () => {
 
 // ── 描画 ──
 function render() {
-  // マークボタン
   const next = marks.length < maxMarks() ? labelFor(marks.length) : null;
   $("markBtn").textContent = next ? "⏱ " + next + " をマーク" : "計測完了";
   $("markBtn").disabled = !next;
 
-  // タイムラインのマーク線
   const d = video.duration || 0;
   $("tlMarks").innerHTML = marks.map((t, i) =>
     `<div class="tl-mark${i===0?" start":""}" style="left:${d>0?(t/d*100):0}%"></div>`
   ).join("");
 
-  // テーブル
   $("table").classList.toggle("hidden", marks.length === 0);
   $("rows").innerHTML = marks.map((t, i) => {
     const cum = i === 0 ? 0 : t - marks[0];
@@ -302,7 +371,6 @@ function render() {
     </div>`;
   }).join("");
 
-  // 行のイベント
   $("rows").querySelectorAll("[data-seek]").forEach(el =>
     el.onclick = () => { video.pause(); video.currentTime = +el.dataset.seek; });
   $("rows").querySelectorAll("[data-fix]").forEach(el =>
